@@ -1,0 +1,106 @@
+# .github/workflows/multi-job.yml
+name: Multi-Job Workflow
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # Дозволити ручний запуск
+
+jobs:
+  # Job 1: Підготовка
+  prepare:
+    name: Prepare Environment
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.set-version.outputs.version }}
+      timestamp: ${{ steps.set-timestamp.outputs.time }}
+
+    steps:
+      - name: Set version
+        id: set-version
+        run: echo "version=1.0.0" >> $GITHUB_OUTPUT
+
+      - name: Set timestamp
+        id: set-timestamp
+        run: echo "time=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+
+      - name: Display outputs
+        run: |
+          echo "Version: ${{ steps.set-version.outputs.version }}"
+          echo "Timestamp: ${{ steps.set-timestamp.outputs.time }}"
+
+  # Job 2: Тестування на Linux (залежить від prepare)
+  test-linux:
+    name: Test on Linux
+    needs: prepare
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm ci || echo "No package.json found"
+
+      - name: Run tests
+        run: npm test || echo "No tests configured"
+        continue-on-error: true
+
+      - name: Use output from prepare job
+        run: |
+          echo "Building version: ${{ needs.prepare.outputs.version }}"
+          echo "Build time: ${{ needs.prepare.outputs.timestamp }}"
+
+  # Job 3: Тестування на Windows (паралельно з test-linux)
+  test-windows:
+    name: Test on Windows
+    needs: prepare
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Display info
+        run: |
+          Write-Host "Testing on Windows"
+          Write-Host "Version: ${{ needs.prepare.outputs.version }}"
+
+  # Job 4: Тестування на macOS (паралельно з іншими)
+  test-macos:
+    name: Test on macOS
+    needs: prepare
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Display info
+        run: |
+          echo "Testing on macOS"
+          echo "Version: ${{ needs.prepare.outputs.version }}"
+
+  # Job 5: Збірка (виконується після всіх тестів)
+  build:
+    name: Build Application
+    needs: [prepare, test-linux, test-windows, test-macos]
+    runs-on: ubuntu-latest
+    if: success() # Виконується тільки якщо всі попередні jobs успішні
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build
+        run: |
+          echo "Building version ${{ needs.prepare.outputs.version }}"
+          echo "All tests passed!"
+          # Тут може бути реальна команда збірки
+          # npm run build
+          # docker build -t app:${{ needs.prepare.outputs.version }} .
