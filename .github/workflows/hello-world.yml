@@ -1,0 +1,39 @@
+# .github/workflows/hello-world.yml
+name: Hello World Workflow
+
+# Події, при яких виконується workflow
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+# Дозволити запуск workflow з pull requests
+permissions:
+  contents: read
+
+# Jobs - основні блоки виконання
+jobs:
+  greet:
+    # Назва job
+    name: Greet the World
+    # ОС для виконання
+    runs-on: ubuntu-latest
+
+    # Steps - кроки виконання job
+    steps:
+      # Крок 1: Checkout коду
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Крок 2: Виведення привітання
+      - name: Say Hello
+        run: echo "Hello, World! This is my first GitHub Actions workflow!"
+
+      # Крок 3: Виведення інформації про систему
+      - name: Show system info
+        run: |
+          echo "Running on: ${{ runner.os }}"
+          echo "GitHub Actor: ${{ github.actor }}"
+          echo "Repository: ${{ github.repository }}"
+          echo "Event: ${{ github.event_name }}"
